@@ -735,7 +735,8 @@ class SpaceGame {
             if (star.expanding && star.currentExpansion) selectionRadius = star.currentExpansion / 2;
             
             // Учитываем размер звезды и добавляем небольшой запас для удобства выбора
-            if (distance < selectionRadius + 10) {
+            // Увеличиваем запас для мобильных устройств
+            if (distance < selectionRadius + 25) { // Increased buffer from 10 to 25
                 return star;
             }
         }
@@ -1654,8 +1655,8 @@ class SpaceGame {
             const dy = objY - worldY;
             const distance = Math.sqrt(dx * dx + dy * dy);
             
-            // Используем радиус объекта с небольшим запасом для удобства выбора
-            const selectionRadius = obj.radius * 1.5;
+            // Используем радиус объекта с большим запасом для удобства выбора
+            const selectionRadius = obj.radius * 2.5; // Increased multiplier from 1.5
             
             if (distance < selectionRadius) {
                 return obj;
@@ -1674,7 +1675,7 @@ class SpaceGame {
                     const moonDy = moonY - worldY;
                     const moonDistance = Math.sqrt(moonDx * moonDx + moonDy * moonDy);
                     
-                    if (moonDistance < moon.radius * 1.5) {
+                    if (moonDistance < moon.radius * 2.5) { // Increased multiplier from 1.5
                         return { ...moon, parentPlanet: obj };
                     }
                 }
@@ -1693,7 +1694,7 @@ class SpaceGame {
                     const stationDy = stationY - worldY;
                     const stationDistance = Math.sqrt(stationDx * stationDx + stationDy * stationDy);
                     
-                    if (stationDistance < station.radius * 2) { // Используем больший радиус выбора для станций
+                    if (stationDistance < station.radius * 3.0) { // Increased multiplier from 2
                         return { ...station, parentPlanet: obj };
                     }
                 }

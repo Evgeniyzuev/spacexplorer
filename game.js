@@ -744,30 +744,33 @@ class SpaceGame {
     }
     
     updateStarInfo() {
-        // Обновляем информацию о текущей звезде
-        if (this.currentStar) {
-            document.getElementById('currentStarName').textContent = this.currentStar.name;
-            document.getElementById('currentStarInfo').textContent = `Тип: ${this.currentStar.type}`;
-        } else {
-            document.getElementById('currentStarName').textContent = 'Нет';
-            document.getElementById('currentStarInfo').textContent = '';
+        // Обновляем информацию в единой панели для глобального режима
+        const systemInfoContent = document.getElementById('systemInfoContent');
+        if (!systemInfoContent) {
+            console.error('Element with ID "systemInfoContent" not found');
+            return;
         }
-        
-        // Обновляем информацию о целевой звезде
+    
+        let info = '<h4>Глобальная карта</h4>';
+    
+        if (this.currentStar) {
+            info += `<p><b>Текущая система:</b> ${this.currentStar.name}</p>`;
+        } else {
+            info += '<p><b>Текущая система:</b> Нет</p>';
+        }
+    
         if (this.targetStar) {
-            document.getElementById('targetStarName').textContent = this.targetStar.name;
-            document.getElementById('targetStarInfo').textContent = `Тип: ${this.targetStar.type}`;
-            
-            // Рассчитываем расстояние
+            info += `<p><b>Цель:</b> ${this.targetStar.name}`;
             if (this.currentStar) {
                 const distance = this.calculateDistance(this.currentStar, this.targetStar);
-                document.getElementById('distance').textContent = distance.toFixed(2);
+                info += ` (${distance.toFixed(2)} св. лет)`;
             }
+            info += '</p>';
         } else {
-            document.getElementById('targetStarName').textContent = 'Нет';
-            document.getElementById('targetStarInfo').textContent = '';
-            document.getElementById('distance').textContent = '0';
+            info += '<p><b>Цель:</b> Нет</p>';
         }
+    
+        systemInfoContent.innerHTML = info;
     }
     
     calculateDistance(star1, star2) {
@@ -811,11 +814,11 @@ class SpaceGame {
         // Обновляем текст кнопки
         document.getElementById('viewModeButton').textContent = 'Показать галактику';
         
-        // Показываем информацию о системе
+        // Убеждаемся, что панель информации видима и обновляем ее для системы
         const systemInfo = document.getElementById('systemInfo');
         if (systemInfo) {
-            systemInfo.style.display = 'block';
-            this.updateSystemInfo();
+            systemInfo.style.display = 'block'; // Убедимся, что панель видима
+            this.updateSystemInfo(); // Обновляем содержимое для системы
         } else {
             console.error('Element with ID "systemInfo" not found');
         }
@@ -831,8 +834,17 @@ class SpaceGame {
         // Обновляем текст кнопки
         document.getElementById('viewModeButton').textContent = 'Показать систему';
         
-        // Скрываем информацию о системе
-        document.getElementById('systemInfo').style.display = 'none';
+        // Обновляем содержимое единой панели для глобального вида
+        const systemInfo = document.getElementById('systemInfo');
+        if (systemInfo) {
+            systemInfo.style.display = 'block'; // Панель остается видимой
+            this.updateStarInfo(); // Показываем информацию о звездах
+        } else {
+            console.error('Element with ID "systemInfo" not found');
+        }
+        
+        // Сбрасываем выбранный объект системы, если он был
+        this.selectedSystemObject = null;
     }
     
     updateSystemInfo() {
@@ -854,7 +866,7 @@ class SpaceGame {
         }
         
         let info = `<h4>Система: ${this.currentStar.name}</h4>`;
-        info += `<p>Тип звезды: ${this.currentStar.type}</p>`;
+        // Убираем строку с типом звезды
         
         // Добавляем информацию о звезде в зависимости от её типа
         switch (this.currentStar.objectType) {
@@ -1706,10 +1718,9 @@ class SpaceGame {
             // Это станция на орбите планеты
             infoText = `<h4>Космическая станция: ${obj.name}</h4>`;
             infoText += `<p>Орбита планеты: ${obj.parentPlanet.name}</p>`;
-            infoText += `<p>Радиус станции: ${obj.radius.toFixed(1)} ед.</p>`;
+            infoText += `<p>Радиус: ${obj.radius.toFixed(1)} ед.</p>`;
             infoText += `<p>Орбитальное расстояние: ${obj.orbit.toFixed(1)} ед.</p>`;
             infoText += `<p>Скорость вращения: ${(obj.rotationSpeed * 100).toFixed(1)}</p>`;
-            infoText += `<p>Тип: Орбитальная станция</p>`;
         } else if (obj.objectType === 'planet') {
             // Это планета
             infoText = `<h4>Планета: ${obj.name}</h4>`;
@@ -1728,21 +1739,19 @@ class SpaceGame {
             // Это станция на орбите звезды
             infoText = `<h4>Космическая станция: ${obj.name}</h4>`;
             infoText += `<p>Орбита звезды: ${this.currentStar.name}</p>`;
-            infoText += `<p>Радиус станции: ${obj.radius.toFixed(1)} ед.</p>`;
+            infoText += `<p>Радиус: ${obj.radius.toFixed(1)} ед.</p>`;
             infoText += `<p>Орбитальное расстояние: ${obj.orbit.toFixed(1)} ед.</p>`;
             infoText += `<p>Скорость вращения: ${(obj.rotationSpeed * 100).toFixed(1)}</p>`;
-            infoText += `<p>Тип: Орбитальная станция</p>`;
         } else if (obj.type === 'gas_cloud') {
             // Газовое облако
             infoText = `<h4>Газовое облако: ${obj.name}</h4>`;
-            infoText += `<p>Тип объекта: Газовое облако (статично)</p>`;
             infoText += `<p>Размер: ${obj.radius.toFixed(1)} ед.</p>`;
             infoText += `<p>Расстояние от звезды: ${obj.orbit.toFixed(1)} ед.</p>`;
             infoText += `<p>Состав: Космический газ и космическая пыль</p>`;
         } else {
             // Другие объекты
             infoText = `<h4>${obj.name}</h4>`;
-            infoText += `<p>Тип объекта: ${obj.type.replace('_', ' ')}</p>`;
+            infoText += `<p>Тип: ${obj.type.replace('_', ' ')}</p>`;
             infoText += `<p>Размер: ${obj.radius.toFixed(1)} ед.</p>`;
             infoText += `<p>Расстояние от звезды: ${obj.orbit.toFixed(1)} ед.</p>`;
             if (obj.isStatic) {
@@ -1753,13 +1762,12 @@ class SpaceGame {
         }
         
         // Добавляем кнопку для перемещения к объекту
-        // Убираем проверку на !obj.isStatic, теперь кнопка добавляется для всех объектов
         infoText += `<button id="moveToObject" class="info-button">Переместиться к ${obj.name}</button>`;
         
         // Добавляем кнопку для возврата к информации о системе
         infoText += `<button id="backToSystemInfo" class="info-button">Вернуться к информации о системе</button>`;
         
-        // Обновляем панель информации
+        // Обновляем существующую панель информации вместо создания новой
         const systemInfoContent = document.getElementById('systemInfoContent');
         if (systemInfoContent) {
             systemInfoContent.innerHTML = infoText;

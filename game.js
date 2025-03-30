@@ -133,6 +133,28 @@ class SpaceGame {
         // Для отслеживания выбранного объекта
         this.selectedSystemObject = null;
         
+        // Параметры для корабля и перемещения
+        this.shipImage = new Image();
+        this.shipImage.src = 'ship1.jpg';
+        this.shipLoaded = false;
+        this.shipImage.onload = () => {
+            console.log('Корабль загружен');
+            this.shipLoaded = true;
+        };
+        this.shipImage.onerror = (e) => {
+            console.error('Ошибка загрузки корабля:', e);
+        };
+        
+        // Позиция корабля и параметры движения
+        this.shipPosition = { x: 0, y: 0 };
+        this.shipVisible = false;
+        this.shipMoving = false;
+        this.shipDestination = null;
+        this.shipSpeed = 200; // Скорость корабля
+        this.shipStartTime = 0; // Время начала движения
+        this.shipTravelTime = 0; // Общее время в пути
+        this.shipStartPosition = { x: 0, y: 0 }; // Начальная позиция корабля
+        
         // Генерация звезд
         this.generateStars();
         
@@ -914,6 +936,9 @@ class SpaceGame {
                     this.drawSystemObject(ctx, obj, this.currentStar);
                 }
             }
+            
+            // Рисуем корабль
+            this.drawShip(ctx);
         } else {
             // В глобальном режиме рисуем все звезды
             for (const star of this.stars) {
@@ -1727,6 +1752,10 @@ class SpaceGame {
             }
         }
         
+        // Добавляем кнопку для перемещения к объекту
+        // Убираем проверку на !obj.isStatic, теперь кнопка добавляется для всех объектов
+        infoText += `<button id="moveToObject" class="info-button">Переместиться к ${obj.name}</button>`;
+        
         // Добавляем кнопку для возврата к информации о системе
         infoText += `<button id="backToSystemInfo" class="info-button">Вернуться к информации о системе</button>`;
         
@@ -1735,7 +1764,15 @@ class SpaceGame {
         if (systemInfoContent) {
             systemInfoContent.innerHTML = infoText;
             
-            // Добавляем обработчик для кнопки
+            // Добавляем обработчик для кнопки перемещения
+            const moveButton = document.getElementById('moveToObject');
+            if (moveButton) {
+                moveButton.addEventListener('click', () => {
+                    this.moveToSystemObject(obj);
+                });
+            }
+            
+            // Добавляем обработчик для кнопки возврата
             const backButton = document.getElementById('backToSystemInfo');
             if (backButton) {
                 backButton.addEventListener('click', () => {
@@ -2211,6 +2248,168 @@ class SpaceGame {
         ctx.fillRect(station.radius - station.radius * 0.3, -station.radius * 0.8, station.radius * 0.3, station.radius * 0.6);
         ctx.fillRect(-station.radius, station.radius * 0.2, station.radius * 0.3, station.radius * 0.6);
         ctx.fillRect(station.radius - station.radius * 0.3, station.radius * 0.2, station.radius * 0.3, station.radius * 0.6);
+        
+        ctx.restore();
+    }
+    
+    // Добавляем метод для перемещения к объекту системы
+    moveToSystemObject(obj) {
+        if (!obj || this.viewMode !== VIEW_MODES.SYSTEM || !this.currentStar) return;
+        
+        // Проверяем, что у объекта есть необходимые свойства
+        if (!obj.orbit || typeof obj.angle !== 'number') {
+            console.error('Недостаточно данных для перемещения к объекту:', obj);
+            return;
+        }
+        
+        // Определяем начальную позицию корабля (центр экрана или другой объект)
+        if (!this.shipVisible) {
+            // Если корабль еще не отображается, устанавливаем его в центре (у звезды)
+            this.shipPosition.x = this.currentStar.x;
+            this.shipPosition.y = this.currentStar.y;
+        }
+        
+        // Сохраняем начальную позицию для расчета траектории
+        this.shipStartPosition = { ...this.shipPosition };
+        
+        // Рассчитываем конечную позицию
+        let targetX, targetY;
+        
+        if (obj.parentPlanet) {
+            // Если это луна или станция, находим ее абсолютные координаты
+            const planetX = this.currentStar.x + Math.cos(obj.parentPlanet.angle) * obj.parentPlanet.orbit;
+            const planetY = this.currentStar.y + Math.sin(obj.parentPlanet.angle) * obj.parentPlanet.orbit;
+            
+            targetX = planetX + Math.cos(obj.angle) * obj.orbit;
+            targetY = planetY + Math.sin(obj.angle) * obj.orbit;
+        } else {
+            // Для планет и других объектов на орбите звезды
+            targetX = this.currentStar.x + Math.cos(obj.angle) * obj.orbit;
+            targetY = this.currentStar.y + Math.sin(obj.angle) * obj.orbit;
+        }
+        
+        // Для газовых облаков перемещаемся ближе к центру облака
+        if (obj.type === 'gas_cloud') {
+            // Для газовых облаков добавляем небольшой случайный отступ от центра,
+            // чтобы создать впечатление, что корабль находится внутри облака
+            const randomAngle = Math.random() * Math.PI * 2;
+            const randomOffset = obj.radius * 0.3; // Случайное смещение внутри облака (30% от радиуса)
+            
+            targetX += Math.cos(randomAngle) * randomOffset;
+            targetY += Math.sin(randomAngle) * randomOffset;
+        } else {
+            // Для других объектов добавляем отступ в направлении от центра орбиты
+            const offsetDistance = (obj.radius || 10) * 2; // Отступ в 2 радиуса объекта
+            
+            // Угол от центра орбиты к объекту
+            const angleToCenter = Math.atan2(
+                targetY - (obj.parentPlanet ? 
+                    this.currentStar.y + Math.sin(obj.parentPlanet.angle) * obj.parentPlanet.orbit : 
+                    this.currentStar.y),
+                targetX - (obj.parentPlanet ? 
+                    this.currentStar.x + Math.cos(obj.parentPlanet.angle) * obj.parentPlanet.orbit : 
+                    this.currentStar.x)
+            );
+            
+            // Добавляем отступ в направлении от центра орбиты
+            targetX += Math.cos(angleToCenter) * offsetDistance;
+            targetY += Math.sin(angleToCenter) * offsetDistance;
+        }
+        
+        // Устанавливаем параметры для анимации
+        this.shipDestination = { x: targetX, y: targetY };
+        this.shipMoving = true;
+        this.shipVisible = true;
+        
+        // Рассчитываем время полета (зависит от расстояния)
+        const distance = Math.sqrt(
+            Math.pow(targetX - this.shipPosition.x, 2) + 
+            Math.pow(targetY - this.shipPosition.y, 2)
+        );
+        
+        // Время в секундах (скорость 200 единиц в секунду)
+        this.shipTravelTime = distance / this.shipSpeed;
+        this.shipStartTime = this.time;
+        
+        // Обновляем информацию о перемещении
+        console.log(`Начинаем перемещение к ${obj.name}. Расстояние: ${distance.toFixed(2)}, Время: ${this.shipTravelTime.toFixed(2)} сек`);
+    }
+    
+    // Отрисовка корабля
+    drawShip(ctx) {
+        if (!this.shipVisible || this.viewMode !== VIEW_MODES.SYSTEM) return;
+        
+        // Если корабль в движении, обновляем его позицию
+        if (this.shipMoving && this.shipDestination) {
+            const elapsedTime = this.time - this.shipStartTime;
+            const progress = Math.min(elapsedTime / this.shipTravelTime, 1.0);
+            
+            // Линейная интерполяция позиции
+            this.shipPosition.x = this.shipStartPosition.x + (this.shipDestination.x - this.shipStartPosition.x) * progress;
+            this.shipPosition.y = this.shipStartPosition.y + (this.shipDestination.y - this.shipStartPosition.y) * progress;
+            
+            // Если достигли цели, останавливаем движение
+            if (progress >= 1.0) {
+                this.shipMoving = false;
+            }
+        }
+        
+        // Рассчитываем угол поворота корабля
+        let rotation = 0;
+        if (this.shipMoving && this.shipDestination) {
+            // Направление движения
+            rotation = Math.atan2(
+                this.shipDestination.y - this.shipStartPosition.y,
+                this.shipDestination.x - this.shipStartPosition.x
+            );
+        }
+        
+        const shipSize = 6.7; // Размер корабля, уменьшен в 3 раза (было 20)
+        
+        // Рисуем корабль
+        ctx.save();
+        ctx.translate(this.shipPosition.x, this.shipPosition.y);
+        ctx.rotate(rotation);
+        
+        if (this.shipLoaded) {
+            // Рисуем изображение корабля, если оно загружено
+            ctx.drawImage(
+                this.shipImage, 
+                -shipSize / 2, -shipSize / 2, 
+                shipSize, shipSize
+            );
+        } else {
+            // Резервный вариант, если изображение не загружено
+            ctx.beginPath();
+            ctx.moveTo(shipSize / 2, 0);
+            ctx.lineTo(-shipSize / 2, shipSize / 3);
+            ctx.lineTo(-shipSize / 2, -shipSize / 3);
+            ctx.closePath();
+            ctx.fillStyle = '#33CCFF';
+            ctx.fill();
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 0.3; // Уменьшил толщину линии в 3 раза (было 1)
+            ctx.stroke();
+        }
+        
+        // Если корабль в движении, добавляем след движения
+        if (this.shipMoving) {
+            // Добавляем эффект двигателей
+            ctx.beginPath();
+            ctx.moveTo(-shipSize / 2, 0);
+            ctx.lineTo(-shipSize * 1.5, 0); // Длина следа в 1.5 раза больше размера корабля
+            
+            const engineGlow = ctx.createLinearGradient(
+                -shipSize / 2, 0,
+                -shipSize * 1.5, 0
+            );
+            engineGlow.addColorStop(0, 'rgba(255, 100, 0, 0.8)');
+            engineGlow.addColorStop(1, 'rgba(255, 200, 0, 0)');
+            
+            ctx.strokeStyle = engineGlow;
+            ctx.lineWidth = 1; // Уменьшил толщину следа в 3 раза (было 3)
+            ctx.stroke();
+        }
         
         ctx.restore();
     }

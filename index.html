@@ -28,6 +28,7 @@
             max-width: 300px;
             border: 1px solid rgba(100, 149, 237, 0.7);
             box-shadow: 0 0 15px rgba(100, 149, 237, 0.5);
+            z-index: 10;
         }
         .star-info {
             margin-bottom: 10px;
@@ -52,6 +53,7 @@
             cursor: pointer;
             font-size: 14px;
             transition: all 0.3s ease;
+            z-index: 10;
         }
         #viewModeButton:hover {
             background-color: rgba(100, 149, 237, 0.3);
@@ -67,6 +69,7 @@
             border: 1px solid rgba(100, 149, 237, 0.7);
             box-shadow: 0 0 15px rgba(100, 149, 237, 0.5);
             display: none;
+            z-index: 10;
         }
         p {
             margin: 5px 0;
@@ -96,10 +99,16 @@
             padding: 5px;
             border-top: 1px solid rgba(100, 149, 237, 0.3);
         }
+        
+        /* Стили для корабля */
+        #shipCanvas {
+            display: none;
+        }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
+    <canvas id="shipCanvas" width="64" height="64"></canvas>
     <div class="info-panel">
         <div class="star-info">
             <h3>Текущая звезда: <span id="currentStarName">Нет</span></h3>
@@ -117,6 +126,110 @@
     <div id="systemInfo">
         <div id="systemInfoContent"></div>
     </div>
+    
+    <script>
+        // Создаем изображение корабля программно
+        window.onload = function() {
+            const canvas = document.getElementById('shipCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Уменьшаем размер канваса, но оставляем достаточным для хорошей детализации
+            canvas.width = 32;
+            canvas.height = 32;
+            
+            // Очищаем холст
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Фон с прозрачностью
+            ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Центр холста
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            // Рисуем корпус корабля (более компактный и детализированный)
+            ctx.beginPath();
+            ctx.moveTo(centerX + 12, centerY); // Нос корабля
+            ctx.lineTo(centerX - 8, centerY - 6); // Левый угол
+            ctx.lineTo(centerX - 6, centerY); // Левая сторона центра
+            ctx.lineTo(centerX - 8, centerY + 6); // Правый угол
+            ctx.closePath();
+            
+            // Градиент для корпуса
+            const hullGradient = ctx.createLinearGradient(
+                centerX - 8, centerY,
+                centerX + 12, centerY
+            );
+            hullGradient.addColorStop(0, '#335577');
+            hullGradient.addColorStop(0.5, '#5599DD');
+            hullGradient.addColorStop(1, '#88CCFF');
+            
+            ctx.fillStyle = hullGradient;
+            ctx.fill();
+            
+            // Обводка корабля (более тонкая)
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 0.8;
+            ctx.stroke();
+            
+            // Рисуем кабину (более компактную)
+            ctx.beginPath();
+            ctx.arc(centerX + 5, centerY, 3, 0, Math.PI * 2);
+            ctx.fillStyle = '#AADDFF';
+            ctx.fill();
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+            
+            // Рисуем свечение двигателей (более яркое и компактное)
+            ctx.beginPath();
+            ctx.moveTo(centerX - 8, centerY - 4);
+            ctx.lineTo(centerX - 12, centerY - 4);
+            ctx.lineTo(centerX - 10, centerY);
+            ctx.lineTo(centerX - 12, centerY + 4);
+            ctx.lineTo(centerX - 8, centerY + 4);
+            ctx.closePath();
+            
+            const engineGradient = ctx.createLinearGradient(
+                centerX - 8, centerY,
+                centerX - 12, centerY
+            );
+            engineGradient.addColorStop(0, '#FFAA00');
+            engineGradient.addColorStop(0.7, '#FF7700');
+            engineGradient.addColorStop(1, '#FF4400');
+            
+            ctx.fillStyle = engineGradient;
+            ctx.fill();
+            
+            // Добавляем блик на кабине для лучшей видимости
+            ctx.beginPath();
+            ctx.arc(centerX + 4.5, centerY - 0.5, 1, 0, Math.PI * 2);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fill();
+            
+            // Создаем изображение
+            const shipImg = new Image();
+            shipImg.src = canvas.toDataURL('image/png');
+            
+            // Заменяем ссылку на изображение корабля в игре
+            setTimeout(() => {
+                if (window.game && window.game.shipImage) {
+                    window.game.shipImage = shipImg;
+                    window.game.shipLoaded = true;
+                    console.log("Корабль создан программно");
+                }
+            }, 500);
+        };
+    </script>
+    
     <script src="game.js"></script>
+    <script>
+        // Экспортируем экземпляр игры для доступа из других скриптов
+        window.game = null;
+        document.addEventListener('DOMContentLoaded', () => {
+            window.game = new SpaceGame();
+        });
+    </script>
 </body>
 </html> 
